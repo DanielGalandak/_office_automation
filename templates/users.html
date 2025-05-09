@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uživatelé - Kancelářská automatizace</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">Kancelářská automatizace</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">Domů</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('task.list_tasks') }}">Úlohy</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('document.list_documents') }}">Dokumenty</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('user.list_users') }}">Uživatelé</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Uživatelé</h1>
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                <i class="bi bi-person-plus me-1"></i> Přidat uživatele
+            </button>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Uživatelské jméno</th>
+                                <th>Jméno</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Vytvořen</th>
+                                <th>Poslední přihlášení</th>
+                                <th>Akce</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>{{ user.id }}</td>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.first_name }} {{ user.last_name }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    {% if user.is_admin %}
+                                    <span class="badge bg-danger">Admin</span>
+                                    {% else %}
+                                    <span class="badge bg-primary">Uživatel</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.created_at.strftime('%d.%m.%Y') }}</td>
+                                <td>
+                                    {% if user.last_login %}
+                                    {{ user.last_login.strftime('%d.%m.%Y %H:%M') }}
+                                    {% else %}
+                                    <span class="text-muted">Nikdy</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="{{ url_for('user.view_user', user_id=user.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modální okno pro vytvoření uživatele -->
+    <div class="modal fade" id="createUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Přidat nového uživatele</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="create-user-form">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Uživatelské jméno</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label for="first_name" class="form-label">Jméno</label>
+                                <input type="text" class="form-control" id="first_name" name="first_name">
+                            </div>
+                            <div class="col">
+                                <label for="last_name" class="form-label">Příjmení</label>
+                                <input type="text" class="form-control" id="last_name" name="last_name">
+                            </div>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="is_admin" name="is_admin">
+                            <label class="form-check-label" for="is_admin">Administrátor</label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                    <button type="button" class="btn btn-primary" id="save-user-btn">Vytvořit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-light py-3 mt-5">
+        <div class="container text-center">
+            <p class="text-muted mb-0">&copy; 2025 Kancelářská automatizace</p>
+        </div>
+    </footer>
+
+    <!-- Přepínač tématu -->
+    <div id="theme-toggle" class="theme-toggle" title="Přepnout téma">
+        <i class="bi bi-moon-fill"></i>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

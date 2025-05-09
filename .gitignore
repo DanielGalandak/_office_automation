@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# database
+office_automation.db
+
 # C extensions
 *.so
 

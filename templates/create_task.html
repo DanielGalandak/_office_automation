@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vytvořit úlohu - Kancelářská automatizace</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">Kancelářská automatizace</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">Domů</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('task.list_tasks') }}">Úlohy</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('document.list_documents') }}">Dokumenty</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('user.list_users') }}">Uživatelé</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Drobečková navigace -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Domů</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('task.list_tasks') }}">Úlohy</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Vytvořit úlohu</li>
+            </ol>
+        </nav>
+
+        <h1 class="mb-4">Vytvořit novou úlohu</h1>
+
+        <div class="card">
+            <div class="card-body">
+                <form id="create-task-form" method="POST" action="{{ url_for('task.create_task') }}">
+                    <!-- Základní informace o úloze -->
+                    <div class="mb-4">
+                        <h4>Základní informace</h4>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="name" class="form-label">Název úlohy <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="category" class="form-label">Kategorie <span class="text-danger">*</span></label>
+                                <select class="form-select" id="category" name="category" required>
+                                    <option value="" selected disabled>Vyberte kategorii</option>
+                                    <option value="email">Email</option>
+                                    <option value="file">Soubory</option>
+                                    <option value="pdf">PDF</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="priority" class="form-label">Priorita</label>
+                                <select class="form-select" id="priority" name="priority">
+                                    <option value="1">Nízká</option>
+                                    <option value="2" selected>Střední</option>
+                                    <option value="3">Vysoká</option>
+                                </select>
+                            </div>
+                            <div class="col-md-12">
+                                <label for="description" class="form-label">Popis</label>
+                                <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Typ úlohy -->
+                    <div id="task-type-container" class="mb-4 d-none">
+                        <h4>Typ úlohy</h4>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="type" class="form-label">Typ úlohy <span class="text-danger">*</span></label>
+                                <select class="form-select" id="type" name="type" required disabled>
+                                    <option value="" selected disabled>Nejprve vyberte kategorii</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Parametry úlohy - dynamicky se budou měnit podle kategorie a typu -->
+                    <div id="task-parameters-container" class="mb-4 d-none">
+                        <h4>Parametry úlohy</h4>
+                        <div id="task-parameters">
+                            <!-- Zde se dynamicky vygenerují parametry podle vybraného typu úlohy -->
+                        </div>
+                    </div>
+
+                    <!-- Plánování -->
+                    <div class="mb-4">
+                        <h4>Plánování</h4>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="scheduled_for" class="form-label">Naplánovat na</label>
+                                <input type="datetime-local" class="form-control" id="scheduled_for" name="scheduled_for">
+                                <div class="form-text">Ponechte prázdné pro okamžité spuštění.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label d-block">Opakování</label>
+                                <div class="form-check form-check-inline mt-2">
+                                    <input class="form-check-input" type="checkbox" id="is_recurring" name="is_recurring" value="1">
+                                    <label class="form-check-label" for="is_recurring">Opakovaná úloha</label>
+                                </div>
+                            </div>
+
+                            <div id="recurrence-options" class="col-md-12 d-none">
+                                <label for="recurrence_pattern" class="form-label">Vzor opakování</label>
+                                <select class="form-select" id="recurrence_pattern" name="recurrence_pattern">
+                                    <option value="daily">Denně</option>
+                                    <option value="weekly">Týdně</option>
+                                    <option value="monthly">Měsíčně</option>
+                                    <option value="custom">Vlastní...</option>
+                                </select>
+                                <div id="custom-recurrence" class="mt-2 d-none">
+                                    <input type="text" class="form-control" id="custom_pattern" name="custom_pattern" placeholder="Např.: 0 9 * * 1-5 (každý všední den v 9:00)">
+                                    <div class="form-text">Zadejte vzor ve formátu Cron.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Štítky -->
+                    <div class="mb-4">
+                        <h4>Štítky</h4>
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <label for="tags" class="form-label">Štítky (oddělené čárkou)</label>
+                                <input type="text" class="form-control" id="tags" name="tags" placeholder="štítek1, štítek2, štítek3">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tlačítka -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('task.list_tasks') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-1"></i> Zpět na seznam
+                        </a>
+                        <div>
+                            <button type="reset" class="btn btn-outline-secondary me-2">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                            </button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-save me-1"></i> Vytvořit úlohu
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-light py-3 mt-5">
+        <div class="container text-center">
+            <p class="text-muted mb-0">&copy; 2025 Kancelářská automatizace</p>
+        </div>
+    </footer>
+
+    <!-- Přepínač tématu -->
+    <div id="theme-toggle" class="theme-toggle" title="Přepnout téma">
+        <i class="bi bi-moon-fill"></i>
+    </div>
+
+    <!-- Kontejner pro zpětnou vazbu -->
+    <div id="feedback-container" class="position-fixed bottom-0 end-0 p-3"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        // Definice typů úloh podle kategorie
+        const taskTypes = {
+            email: [
+                { value: 'send_email', label: 'Odeslat email' },
+                { value: 'check_inbox', label: 'Zkontrolovat doručenou poštu' },
+                { value: 'create_template', label: 'Vytvořit šablonu emailu' }
+            ],
+            file: [
+                { value: 'convert_excel_to_csv', label: 'Převést Excel do CSV' },
+                { value: 'rename_files', label: 'Přejmenovat soubory' },
+                { value: 'organize_files', label: 'Organizovat soubory podle typu' }
+            ],
+            pdf: [
+                { value: 'merge_pdfs', label: 'Sloučit PDF soubory' },
+                { value: 'extract_text', label: 'Extrahovat text z PDF' },
+                { value: 'create_pdf', label: 'Vytvořit PDF z textu' }
+            ]
+        };
+
+        // Definice parametrů pro jednotlivé typy úloh
+        const taskParameters = {
+            // Email parametry
+            send_email: [
+                { name: 'recipient', label: 'Příjemce', type: 'email', required: true },
+                { name: 'subject', label: 'Předmět', type: 'text', required: true },
+                { name: 'body', label: 'Obsah emailu', type: 'textarea', required: true },
+                { name: 'html_body', label: 'HTML verze (volitelně)', type: 'textarea', required: false },
+                { name: 'attachments', label: 'Přílohy (cesty oddělené čárkou)', type: 'text', required: false }
+            ],
+            check_inbox: [
+                { name: 'limit', label: 'Maximální počet emailů', type: 'number', required: false, default: 10 },
+                { name: 'folder', label: 'Složka', type: 'text', required: false, default: 'INBOX' },
+                { name: 'unread_only', label: 'Pouze nepřečtené', type: 'checkbox', required: false }
+            ],
+            create_template: [
+                { name: 'template_name', label: 'Název šablony', type: 'text', required: true },
+                { name: 'subject', label: 'Předmět', type: 'text', required: true },
+                { name: 'body', label: 'Obsah emailu', type: 'textarea', required: true },
+                { name: 'html_body', label: 'HTML verze (volitelně)', type: 'textarea', required: false }
+            ],
+            
+            // Soubor parametry
+            convert_excel_to_csv: [
+                { name: 'file_path', label: 'Cesta k Excel souboru', type: 'text', required: true },
+                { name: 'output_path', label: 'Cesta pro uložení CSV (volitelně)', type: 'text', required: false }
+            ],
+            rename_files: [
+                { name: 'directory', label: 'Adresář se soubory', type: 'text', required: true },
+                { name: 'pattern', label: 'Vzor pro vyhledávání (regex)', type: 'text', required: true },
+                { name: 'replacement', label: 'Náhrada', type: 'text', required: true },
+                { name: 'recursive', label: 'Rekurzivně (včetně podadresářů)', type: 'checkbox', required: false }
+            ],
+            organize_files: [
+                { name: 'directory', label: 'Adresář se soubory', type: 'text', required: true },
+                { name: 'target_directory', label: 'Cílový adresář (volitelně)', type: 'text', required: false }
+            ],
+            
+            // PDF parametry
+            merge_pdfs: [
+                { name: 'pdf_files', label: 'Seznam PDF souborů (oddělené čárkou)', type: 'text', required: true },
+                { name: 'output_path', label: 'Cesta pro uložení výsledného PDF', type: 'text', required: true }
+            ],
+            extract_text: [
+                { name: 'pdf_file', label: 'Cesta k PDF souboru', type: 'text', required: true },
+                { name: 'output_path', label: 'Cesta pro uložení extrahovaného textu (volitelně)', type: 'text', required: false }
+            ],
+            create_pdf: [
+                { name: 'title', label: 'Název dokumentu', type: 'text', required: true },
+                { name: 'content', label: 'Obsah dokumentu', type: 'textarea', required: true },
+                { name: 'output_path', label: 'Cesta pro uložení PDF', type: 'text', required: true }
+            ]
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const categorySelect = document.getElementById('category');
+            const typeSelect = document.getElementById('type');
+            const taskTypeContainer = document.getElementById('task-type-container');
+            const taskParametersContainer = document.getElementById('task-parameters-container');
+            const taskParameters = document.getElementById('task-parameters');
+            const isRecurringCheckbox = document.getElementById('is_recurring');
+            const recurrenceOptions = document.getElementById('recurrence-options');
+            const recurrencePatternSelect = document.getElementById('recurrence_pattern');
+            const customRecurrenceDiv = document.getElementById('custom-recurrence');
+            
+            // Zpracování změny kategorie
+            categorySelect.addEventListener('change', function() {
+                const selectedCategory = this.value;
+                
+                // Aktualizace seznamu typů úloh
+                typeSelect.innerHTML = '';
+                typeSelect.disabled = false;
+                
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Vyberte typ úlohy';
+                defaultOption.disabled = true;
+                defaultOption.selected = true;
+                typeSelect.appendChild(defaultOption);
+                
+                taskTypes[selectedCategory].forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type.value;
+                    option.textContent = type.label;
+                    typeSelect.appendChild(option);
+                });
+                
+                // Zobrazení sekce pro výběr typu úlohy
+                taskTypeContainer.classList.remove('d-none');
+                
+                // Skrytí parametrů, dokud není vybrán typ úlohy
+                taskParametersContainer.classList.add('d-none');
+                taskParameters.innerHTML = '';
+            });
+            
+            // Zpracování změny typu úlohy
+            typeSelect.addEventListener('change', function() {
+                const selectedType = this.value;
+                
+                // Generování formulářových polí pro parametry
+                generateTaskParametersForm(selectedType);
+                
+                // Zobrazení sekce pro zadání parametrů
+                taskParametersContainer.classList.remove('d-none');
+            });

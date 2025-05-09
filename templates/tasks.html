@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Úlohy - Kancelářská automatizace</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">Kancelářská automatizace</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">Domů</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('task.list_tasks') }}">Úlohy</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('document.list_documents') }}">Dokumenty</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('user.list_users') }}">Uživatelé</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Seznam úloh</h1>
+            <a href="{{ url_for('task.create_task') }}" class="btn btn-success">
+                <i class="bi bi-plus-circle me-1"></i> Vytvořit úlohu
+            </a>
+        </div>
+
+        <!-- Filtry -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Filtry</h5>
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="status-filter" class="form-label">Stav</label>
+                        <select id="status-filter" class="form-select">
+                            <option value="">Vše</option>
+                            <option value="pending">Čeká</option>
+                            <option value="running">Běží</option>
+                            <option value="completed">Dokončeno</option>
+                            <option value="failed">Chyba</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="category-filter" class="form-label">Kategorie</label>
+                        <select id="category-filter" class="form-select">
+                            <option value="">Vše</option>
+                            <option value="email">Email</option>
+                            <option value="file">Soubory</option>
+                            <option value="pdf">PDF</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="priority-filter" class="form-label">Priorita</label>
+                        <select id="priority-filter" class="form-select">
+                            <option value="">Vše</option>
+                            <option value="1">Nízká</option>
+                            <option value="2">Střední</option>
+                            <option value="3">Vysoká</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button id="apply-filters" class="btn btn-primary">
+                            <i class="bi bi-filter me-1"></i> Použít filtry
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiky -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <h3>Celkem úloh</h3>
+                    <div class="value">{{ tasks|length }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <h3>Čeká na spuštění</h3>
+                    <div class="value">{{ tasks|selectattr('status', 'equalto', 'pending')|list|length }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <h3>Dokončeno</h3>
+                    <div class="value">{{ tasks|selectattr('status', 'equalto', 'completed')|list|length }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <h3>Chyby</h3>
+                    <div class="value">{{ tasks|selectattr('status', 'equalto', 'failed')|list|length }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabulka úloh -->
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Název</th>
+                                <th>Kategorie</th>
+                                <th>Typ</th>
+                                <th>Stav</th>
+                                <th>Priorita</th>
+                                <th>Vytvořeno</th>
+                                <th>Naplánováno</th>
+                                <th>Akce</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasks-table-body">
+                            {% for task in tasks %}
+                            <tr data-task-id="{{ task.id }}">
+                                <td>{{ task.id }}</td>
+                                <td>{{ task.name }}</td>
+                                <td>
+                                    {% if task.category == 'email' %}
+                                    <span class="badge bg-info">Email</span>
+                                    {% elif task.category == 'file' %}
+                                    <span class="badge bg-secondary">Soubory</span>
+                                    {% elif task.category == 'pdf' %}
+                                    <span class="badge bg-warning text-dark">PDF</span>
+                                    {% else %}
+                                    <span class="badge bg-light text-dark">{{ task.category }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ task.type }}</td>
+                                <td>
+                                    {% if task.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Čeká</span>
+                                    {% elif task.status == 'running' %}
+                                    <span class="badge bg-info">Běží</span>
+                                    {% elif task.status == 'completed' %}
+                                    <span class="badge bg-success">Dokončeno</span>
+                                    {% elif task.status == 'failed' %}
+                                    <span class="badge bg-danger">Chyba</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ task.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if task.priority == 1 %}
+                                    <span class="text-success"><i class="bi bi-arrow-down-circle"></i> Nízká</span>
+                                    {% elif task.priority == 2 %}
+                                    <span class="text-warning"><i class="bi bi-dash-circle"></i> Střední</span>
+                                    {% elif task.priority == 3 %}
+                                    <span class="text-danger"><i class="bi bi-arrow-up-circle"></i> Vysoká</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ task.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                <td>
+                                    {% if task.scheduled_for %}
+                                    {{ task.scheduled_for.strftime('%d.%m.%Y %H:%M') }}
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="{{ url_for('task.view_task', task_id=task.id) }}" class="btn btn-sm btn-primary" title="Detail úlohy">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        {% if task.status == 'pending' %}
+                                        <button class="btn btn-sm btn-success run-task-btn" title="Spustit úlohu">
+                                            <i class="bi bi-play-fill"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button class="btn btn-sm btn-danger delete-task-btn" title="Smazat úlohu">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center py-4">
+                                    <i class="bi bi-clipboard-x fs-2 d-block mb-2 text-muted"></i>
+                                    Žádné úlohy nebyly nalezeny
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-light py-3 mt-5">
+        <div class="container text-center">
+            <p class="text-muted mb-0">&copy; 2025 Kancelářská automatizace</p>
+        </div>
+    </footer>
+
+    <!-- Přepínač tématu -->
+    <div id="theme-toggle" class="theme-toggle" title="Přepnout téma">
+        <i class="bi bi-moon-fill"></i>
+    </div>
+
+    <!-- Modální okno pro potvrzení smazání -->
+    <div class="modal fade" id="deleteTaskModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Potvrzení smazání</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zavřít"></button>
+                </div>
+                <div class="modal-body">
+                    <p><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> Opravdu chcete smazat tuto úlohu?</p>
+                    <p class="text-muted small">Tato akce je nevratná a všechna data spojená s úlohou budou odstraněna.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                        <i class="bi bi-trash me-1"></i> Smazat
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kontejner pro zpětnou vazbu -->
+    <div id="feedback-container" class="position-fixed bottom-0 end-0 p-3"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
