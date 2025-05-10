@@ -91,7 +91,10 @@ def run_task(task_id):
     
     # Nastavení stavu úlohy na "běží"
     task.status = 'running'
-    task_context.update_task(task)
+    try:
+        task_context.update_task(task)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Chyba při aktualizaci úlohy: {str(e)}'}), 500
     
     try:
         result = None
@@ -99,56 +102,92 @@ def run_task(task_id):
         # Spuštění odpovídající akce podle kategorie a typu úlohy
         if task.category == 'email':
             if task.type == 'send_email':
+                # Bezpečný přístup k parametrům
+                recipient = task.parameters.get('recipient', '') if task.parameters else ''
+                subject = task.parameters.get('subject', '') if task.parameters else ''
+                body = task.parameters.get('body', '') if task.parameters else ''
+                html_body = task.parameters.get('html_body') if task.parameters else None
+                attachments = task.parameters.get('attachments', []) if task.parameters else []
+                
                 result = email_service.send_email(
-                    recipient=task.parameters.get('recipient', ''),
-                    subject=task.parameters.get('subject', ''),
-                    body=task.parameters.get('body', ''),
-                    html_body=task.parameters.get('html_body'),
-                    attachments=task.parameters.get('attachments', [])
+                    recipient=recipient,
+                    subject=subject,
+                    body=body,
+                    html_body=html_body,
+                    attachments=attachments
                 )
             elif task.type == 'check_inbox':
+                limit = int(task.parameters.get('limit', 10)) if task.parameters else 10
+                folder = task.parameters.get('folder', 'INBOX') if task.parameters else 'INBOX'
+                unread_only = task.parameters.get('unread_only', False) if task.parameters else False
+                
                 result = email_service.check_inbox(
-                    limit=int(task.parameters.get('limit', 10)),
-                    folder=task.parameters.get('folder', 'INBOX'),
-                    unread_only=task.parameters.get('unread_only', 'false').lower() == 'true'
+                    limit=limit,
+                    folder=folder,
+                    unread_only=unread_only
                 )
         
         elif task.category == 'file':
             if task.type == 'convert_excel_to_csv':
+                file_path = task.parameters.get('file_path', '') if task.parameters else ''
+                output_path = task.parameters.get('output_path') if task.parameters else None
+                
                 result = file_service.convert_excel_to_csv(
-                    file_path=task.parameters.get('file_path', ''),
-                    output_path=task.parameters.get('output_path')
+                    file_path=file_path,
+                    output_path=output_path
                 )
             elif task.type == 'rename_files':
+                directory = task.parameters.get('directory', '') if task.parameters else ''
+                pattern = task.parameters.get('pattern', '') if task.parameters else ''
+                replacement = task.parameters.get('replacement', '') if task.parameters else ''
+                recursive = task.parameters.get('recursive', False) if task.parameters else False
+                
                 result = file_service.rename_files(
-                    directory=task.parameters.get('directory', ''),
-                    pattern=task.parameters.get('pattern', ''),
-                    replacement=task.parameters.get('replacement', ''),
-                    recursive=task.parameters.get('recursive', 'false').lower() == 'true'
+                    directory=directory,
+                    pattern=pattern,
+                    replacement=replacement,
+                    recursive=recursive
                 )
             elif task.type == 'organize_files':
+                directory = task.parameters.get('directory', '') if task.parameters else ''
+                target_directory = task.parameters.get('target_directory') if task.parameters else None
+                
                 result = file_service.organize_files(
-                    directory=task.parameters.get('directory', ''),
-                    target_directory=task.parameters.get('target_directory')
+                    directory=directory,
+                    target_directory=target_directory
                 )
         
         elif task.category == 'pdf':
             if task.type == 'merge_pdfs':
+                pdf_files = task.parameters.get('pdf_files', []) if task.parameters else []
+                output_path = task.parameters.get('output_path', '') if task.parameters else ''
+                
                 result = pdf_service.merge_pdfs(
-                    pdf_files=task.parameters.get('pdf_files', []),
-                    output_path=task.parameters.get('output_path', '')
+                    pdf_files=pdf_files,
+                    output_path=output_path
                 )
             elif task.type == 'extract_text':
+                pdf_file = task.parameters.get('pdf_file', '') if task.parameters else ''
+                output_path = task.parameters.get('output_path') if task.parameters else None
+                
                 result = pdf_service.extract_text(
-                    pdf_file=task.parameters.get('pdf_file', ''),
-                    output_path=task.parameters.get('output_path')
+                    pdf_file=pdf_file,
+                    output_path=output_path
                 )
             elif task.type == 'create_pdf':
+                title = task.parameters.get('title', '') if task.parameters else ''
+                content = task.parameters.get('content', '') if task.parameters else ''
+                output_path = task.parameters.get('output_path', '') if task.parameters else ''
+                
                 result = pdf_service.create_pdf(
-                    title=task.parameters.get('title', ''),
-                    content=task.parameters.get('content', ''),
-                    output_path=task.parameters.get('output_path', '')
+                    title=title,
+                    content=content,
+                    output_path=output_path
                 )
+        
+        # Pokud nemáme výsledek, vytvořme alespoň základní strukturu
+        if result is None:
+            result = {'status': 'success', 'message': 'Úloha byla dokončena, ale nevrátila žádný výsledek.'}
         
         # Uložení výsledku a aktualizace stavu úlohy
         task.status = 'completed' if result.get('status') == 'success' else 'failed'
@@ -160,6 +199,23 @@ def run_task(task_id):
         updated_task = task_context.update_task(task)
         
         return jsonify({'status': 'success', 'task': updated_task.to_dict()})
+        
+    except Exception as e:
+        # V případě chyby nastavíme stav úlohy na "chyba"
+        task.status = 'failed'
+        task.error = str(e)
+        task.completed_at = datetime.now()
+        
+        try:
+            task_context.update_task(task)
+        except Exception as update_error:
+            # Pokud se nepodaří aktualizovat úlohu, vrátíme obě chyby
+            return jsonify({
+                'status': 'error', 
+                'message': f'Chyba při provádění úlohy: {str(e)}. Chyba při aktualizaci úlohy: {str(update_error)}'
+            }), 500
+        
+        return jsonify({'status': 'error', 'message': str(e)}), 500
         
     except Exception as e:
         # V případě chyby nastavíme stav úlohy na "chyba"
