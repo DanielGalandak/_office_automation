@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project.name }} - Kancelářská automatizace</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">Kancelářská automatizace</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">Domů</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('task.list_tasks') }}">Úlohy</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('document.list_documents') }}">Dokumenty</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('project.list_projects') }}">Projekty</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('chat.general_chat_page') }}">Chat</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('user.list_users') }}">Uživatelé</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Drobečková navigace -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Domů</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('project.list_projects') }}">Projekty</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ project.name }}</li>
+            </ol>
+        </nav>
+
+        <!-- Hlavička projektu -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <div class="project-icon me-3">
+                            <i class="bi {{ project.icon or 'bi-folder' }} fs-1"></i>
+                        </div>
+                        <div>
+                            <h1 class="mb-0">{{ project.name }}</h1>
+                            {% if project.tags %}
+                            <div class="project-tags mt-2">
+                                {% for tag in project.tags %}
+                                <span class="tag">{{ tag }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('project.edit_project', project_id=project.id) }}" class="btn btn-outline-primary">
+                            <i class="bi bi-pencil me-1"></i> Upravit
+                        </a>
+                        <button class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#deleteProjectModal">
+                            <i class="bi bi-trash me-1"></i> Smazat
+                        </button>
+                    </div>
+                </div>
+
+                {% if project.description %}
+                <div class="mt-4">
+                    <h5>Popis projektu</h5>
+                    <p>{{ project.description }}</p>
+                </div>
+                {% endif %}
+
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <div class="mb-2">
+                                    <i class="bi bi-calendar me-1"></i> <strong>Vytvořeno:</strong> {{ project.created_at.strftime('%d.%m.%Y') }}
+                                </div>
+                                {% if project.updated_at %}
+                                <div class="mb-2">
+                                    <i class="bi bi-clock-history me-1"></i> <strong>Aktualizováno:</strong> {{ project.updated_at.strftime('%d.%m.%Y') }}
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <i class="bi bi-person me-1"></i> <strong>Vytvořil:</strong> Uživatel #{{ project.created_by }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <div class="mb-2">
+                                    <i class="bi bi-file-earmark me-1"></i> <strong>Dokumentů:</strong> {{ project.documents|length }}
+                                </div>
+                                <div class="mb-2">
+                                    <i class="bi bi-list-check me-1"></i> <strong>Úkolů:</strong> {{ project.tasks|length }}
+                                </div>
+                                <div class="project-actions mt-2">
+                                    <a href="#" class="btn btn-sm btn-outline-secondary" id="btn-analyze-project">
+                                        <i class="bi bi-graph-up me-1"></i> Analyzovat projekt
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Záložky pro dokumenty a úkoly -->
+        <ul class="nav nav-tabs" id="projectTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab" aria-controls="documents" aria-selected="true">
+                    <i class="bi bi-file-earmark me-1"></i> Dokumenty
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button" role="tab" aria-controls="tasks" aria-selected="false">
+                    <i class="bi bi-list-check me-1"></i> Úkoly
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat" type="button" role="tab" aria-controls="chat" aria-selected="false">
+                    <i class="bi bi-chat-dots me-1"></i> Chat
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="projectTabsContent">
+            <!-- Záložka s dokumenty -->
+            <div class="tab-pane fade show active" id="documents" role="tabpanel" aria-labelledby="documents-tab">
+                <div class="card border-top-0 rounded-top-0">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4>Dokumenty projektu</h4>
+                            <div>
+                                <a href="{{ url_for('document.upload_document') }}" class="btn btn-success btn-sm">
+                                    <i class="bi bi-upload me-1"></i> Nahrát dokument
+                                </a>
+                                <button class="btn btn-outline-primary btn-sm ms-2" id="btn-add-existing-document">
+                                    <i class="bi bi-plus-circle me-1"></i> Přidat existující
+                                </button>
+                            </div>
+                        </div>
+
+                        {% if project.documents %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Název</th>
+                                        <th>Typ</th>
+                                        <th>Přidáno</th>
+                                        <th>Akce</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for doc_id in project.documents %}
+                                    <tr>
+                                        <td>Dokument #{{ doc_id }}</td>
+                                        <td>-</td>
+                                        <td>-</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="#" class="btn btn-primary">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <button class="btn btn-danger remove-document-btn" data-document-id="{{ doc_id }}">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-5">
+                            <div class="empty-state">
+                                <i class="bi bi-file-earmark-x fs-1 text-muted mb-3"></i>
+                                <h5 class="mb-3">Žádné dokumenty</h5>
+                                <p class="text-muted mb-4">Tento projekt zatím nemá žádné dokumenty. Nahrajte nový dokument nebo přidejte existující.</p>
+                                <div>
+                                    <a href="{{ url_for('document.upload_document') }}" class="btn btn-primary me-2">
+                                        <i class="bi bi-upload me-1"></i> Nahrát dokument
+                                    </a>
+                                    <button class="btn btn-outline-secondary" id="btn-add-existing-document-empty">
+                                        <i class="bi bi-plus-circle me-1"></i> Přidat existující
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Záložka s úkoly -->
+            <div class="tab-pane fade" id="tasks" role="tabpanel" aria-labelledby="tasks-tab">
+                <div class="card border-top-0 rounded-top-0">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4>Úkoly projektu</h4>
+                            <div>
+                                <a href="{{ url_for('task.create_task') }}" class="btn btn-success btn-sm">
+                                    <i class="bi bi-plus-circle me-1"></i> Vytvořit úkol
+                                </a>
+                                <button class="btn btn-outline-primary btn-sm ms-2" id="btn-add-existing-task">
+                                    <i class="bi bi-plus-circle me-1"></i> Přidat existující
+                                </button>
+                            </div>
+                        </div>
+
+                        {% if project.tasks %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Název</th>
+                                        <th>Stav</th>
+                                        <th>Priorita</th>
+                                        <th>Akce</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for task_id in project.tasks %}
+                                    <tr>
+                                        <td>Úkol #{{ task_id }}</td>
+                                        <td>-</td>
+                                        <td>-</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="#" class="btn btn-primary">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <button class="btn btn-danger remove-task-btn" data-task-id="{{ task_id }}">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-5">
+                            <div class="empty-state">
+                                <i class="bi bi-list-check fs-1 text-muted mb-3"></i>
+                                <h5 class="mb-3">Žádné úkoly</h5>
+                                <p class="text-muted mb-4">Tento projekt zatím nemá žádné úkoly. Vytvořte nový úkol nebo přidejte existující.</p>
+                                <div>
+                                    <a href="{{ url_for('task.create_task') }}" class="btn btn-primary me-2">
+                                        <i class="bi bi-plus-circle me-1"></i> Vytvořit úkol
+                                    </a>
+                                    <button class="btn btn-outline-secondary" id="btn-add-existing-task-empty">
+                                        <i class="bi bi-plus-circle me-1"></i> Přidat existující
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Záložka s chatem -->
+            <div class="tab-pane fade" id="chat" role="tabpanel" aria-labelledby="chat-tab">
+                <div class="card border-top-0 rounded-top-0">
+                    <div class="card-body">
+                        <h4 class="mb-4">Chat s projektem</h4>
+                        
+                        <div class="chat-container mb-3">
+                            <div class="chat-messages" id="chat-messages">
+                                <div class="chat-message system-message">
+                                    <div class="message-content">
+                                        <p>Vítejte v chatu projektu <strong>{{ project.name }}</strong>. Zde můžete klást dotazy ohledně dokumentů a úkolů v projektu.</p>
+                                    </div>
+                                </div>
+                                <!-- Zde budou zprávy chatu -->
+                            </div>
+                        </div>
+                        
+                        <div class="chat-input">
+                            <form id="chat-form">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="chat-message-input" placeholder="Napište zprávu nebo otázku...">
+                                    <button class="btn btn-primary" type="submit">
+                                        <i class="bi bi-send"></i>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modální okno pro potvrzení smazání projektu -->
+    <div class="modal fade" id="deleteProjectModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Potvrzení smazání</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zavřít"></button>
+                </div>
+                <div class="modal-body">
+                    <p><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> Opravdu chcete smazat projekt <strong>{{ project.name }}</strong>?</p>
+                    <p class="text-muted small">Tato akce je nevratná a všechna data související s projektem budou odstraněna.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                    <form action="{{ url_for('project.delete_project', project_id=project.id) }}" method="POST">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash me-1"></i> Smazat
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modální okno pro přidání existujícího dokumentu -->
+    <div class="modal fade" id="addDocumentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Přidat existující dokument</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zavřít"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" placeholder="Hledat dokument..." id="document-search">
+                        <button class="btn btn-outline-secondary" type="button">Hledat</button>
+                    </div>
+                    
+                    <div class="document-list">
+                        <!-- Zde bude seznam dokumentů -->
+                        <div class="text-center py-3">
+                            <p class="text-muted">Použijte vyhledávání pro nalezení dokumentů.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zavřít</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modální okno pro přidání existujícího úkolu -->
+    <div class="modal fade" id="addTaskModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Přidat existující úkol</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zavřít"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" placeholder="Hledat úkol..." id="task-search">
+                        <button class="btn btn-outline-secondary" type="button">Hledat</button>
+                    </div>
+                    
+                    <div class="task-list">
+                        <!-- Zde bude seznam úkolů -->
+                        <div class="text-center py-3">
+                            <p class="text-muted">Použijte vyhledávání pro nalezení úkolů.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zavřít</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-light py-3 mt-5">
+        <div class="container text-center">
+            <p class="text-muted mb-0">&copy; 2025 Kancelářská automatizace</p>
+        </div>
+    </footer>
+
+    <!-- Přepínač tématu -->
+    <div id="theme-toggle" class="theme-toggle" title="Přepnout téma">
+        <i class="bi bi-moon-fill"></i>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Modální okna
+            const addDocumentModal = new bootstrap.Modal(document.getElementById('addDocumentModal'));
+            const addTaskModal = new bootstrap.Modal(document.getElementById('addTaskModal'));
+            
+            // Tlačítka pro přidání existujícího dokumentu
+            document.getElementById('btn-add-existing-document').addEventListener('click', function() {
+                addDocumentModal.show();
+            });
+            
+            // Tlačítka pro přidání existujícího úkolu
+            document.getElementById('btn-add-existing-task').addEventListener('click', function() {
+                addTaskModal.show();
+            });
+            
+            // Prázdné stavy - tlačítka
+            const btnAddExistingDocumentEmpty = document.getElementById('btn-add-existing-document-empty');
+            if (btnAddExistingDocumentEmpty) {
+                btnAddExistingDocumentEmpty.addEventListener('click', function() {
+                    addDocumentModal.show();
+                });
+            }
+            
+            const btnAddExistingTaskEmpty = document.getElementById('btn-add-existing-task-empty');
+            if (btnAddExistingTaskEmpty) {
+                btnAddExistingTaskEmpty.addEventListener('click', function() {
+                    addTaskModal.show();
+                });
+            }
+            
+            // Tlačítka pro odebrání dokumentu
+            const removeDocumentButtons = document.querySelectorAll('.remove-document-btn');
+            removeDocumentButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const documentId = this.dataset.documentId;
+                    if (confirm('Opravdu chcete odebrat tento dokument z projektu?')) {
+                        removeDocumentFromProject(documentId);
+                    }
+                });
+            });
+            
+            // Tlačítka pro odebrání úkolu
+            const removeTaskButtons = document.querySelectorAll('.remove-task-btn');
+            removeTaskButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const taskId = this.dataset.taskId;
+                    if (confirm('Opravdu chcete odebrat tento úkol z projektu?')) {
+                        removeTaskFromProject(taskId);
+                    }
+                });
+            });
+            
+            // Funkce pro odebrání dokumentu z projektu
+            function removeDocumentFromProject(documentId) {
+                fetch(`/projects/{{ project.id }}/remove-document/${documentId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Odstranění řádku z tabulky
+                        const row = document.querySelector(`.remove-document-btn[data-document-id="${documentId}"]`).closest('tr');
+                        if (row) {
+                            row.remove();
+                        }
+                        showFeedback('success', 'Dokument byl odebrán z projektu');
+                        
+                        // Kontrola, zda již nezůstaly žádné dokumenty
+                        const documentRows = document.querySelectorAll('#documents tbody tr');
+                        if (documentRows.length === 0) {
+                            location.reload();  // Načtení stránky pro zobrazení prázdného stavu
+                        }
+                    } else {
+                        showFeedback('error', `Chyba: ${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Chyba při odebírání dokumentu:', error);
+                    showFeedback('error', 'Došlo k chybě při odebírání dokumentu');
+                });
+            }
+            
+            // Funkce pro odebrání úkolu z projektu
+            function removeTaskFromProject(taskId) {
+                fetch(`/projects/{{ project.id }}/remove-task/${taskId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Odstranění řádku z tabulky
+                        const row = document.querySelector(`.remove-task-btn[data-task-id="${taskId}"]`).closest('tr');
+                        if (row) {
+                            row.remove();
+                        }
+                        showFeedback('success', 'Úkol byl odebrán z projektu');
+                        
+                        // Kontrola, zda již nezůstaly žádné úkoly
+                        const taskRows = document.querySelectorAll('#tasks tbody tr');
+                        if (taskRows.length === 0) {
+                            location.reload();  // Načtení stránky pro zobrazení prázdného stavu
+                        }
+                    } else {
+                        showFeedback('error', `Chyba: ${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Chyba při odebírání úkolu:', error);
+                    showFeedback('error', 'Došlo k chybě při odebírání úkolu');
+                });
+            }
+            
+            // Chat formulář
+            const chatForm = document.getElementById('chat-form');
+            const chatInput = document.getElementById('chat-message-input');
+            const chatMessages = document.getElementById('chat-messages');
+            
+            if (chatForm) {
+                chatForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const message = chatInput.value.trim();
+                    if (!message) return;
+                    
+                    // Přidání zprávy uživatele do chatu
+                    addMessageToChat('user', message);
+                    
+                    // Odeslání zprávy na server
+                    // V budoucnu bude zpracováno pomocí LLM
+                    
+                    // Zobrazení načítání
+                    addMessageToChat('loading', '');
+                    
+                    // Simulace odpovědi (bude nahrazeno voláním API)
+                    setTimeout(() => {
+                        // Odstranění zprávy s načítáním
+                        const loadingMessage = document.querySelector('.chat-message.loading');
+                        if (loadingMessage) {
+                            loadingMessage.remove();
+                        }
+                        
+                        // Simulovaná odpověď (bude nahrazeno reálnou odpovědí od LLM)
+                        const response = `Toto je ukázková odpověď na vaši zprávu: "${message}". V budoucnu zde bude odpověď od jazykového modelu, který bude pracovat s kontextem projektu.`;
+                        addMessageToChat('assistant', response);
+                    }, 1000);
+                    
+                    // Vyčištění vstupního pole
+                    chatInput.value = '';
+                });
+            }
+            
+            // Funkce pro přidání zprávy do chatu
+            function addMessageToChat(sender, content) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `chat-message ${sender}-message`;
+                
+                if (sender === 'loading') {
+                    // Zpráva s načítáním
+                    messageDiv.innerHTML = `
+                        <div class="message-content">
+                            <div class="loading-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Běžná zpráva
+                    messageDiv.innerHTML = `
+                        <div class="message-avatar">
+                            <i class="bi ${sender === 'user' ? 'bi-person-circle' : 'bi-robot'}"></i>
+                        </div>
+                        <div class="message-content">
+                            <p>${content}</p>
+                        </div>
+                    `;
+                }
+                
+                chatMessages.appendChild(messageDiv);
+                
+                // Scrollování na konec
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            // Tlačítko pro analýzu projektu
+            const analyzeProjectBtn = document.getElementById('btn-analyze-project');
+            if (analyzeProjectBtn) {
+                analyzeProjectBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // V budoucnu bude implementována analýza projektu
+                    // Nyní pouze ukázková zpětná vazba
+                    showFeedback('info', 'Analýza projektu bude implementována v budoucí verzi.');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

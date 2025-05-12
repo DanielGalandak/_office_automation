@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if project %}Chat: {{ project.name }}{% else %}Obecný chat{% endif %} - Kancelářská automatizace</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">Kancelářská automatizace</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">Domů</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('task.list_tasks') }}">Úlohy</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('document.list_documents') }}">Dokumenty</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('project.list_projects') }}">Projekty</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('chat.general_chat_page') }}">Chat</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('user.list_users') }}">Uživatelé</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Drobečková navigace -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Domů</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{% if project %}Chat: {{ project.name }}{% else %}Obecný chat{% endif %}</li>
+            </ol>
+        </nav>
+
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Projekty</h5>
+                        <a href="{{ url_for('project.create_project') }}" class="btn btn-sm btn-primary">
+                            <i class="bi bi-plus-circle"></i>
+                        </a>
+                    </div>
+                    <div class="list-group list-group-flush" id="project-list">
+                        <a href="{{ url_for('chat.general_chat_page') }}" class="list-group-item list-group-item-action {{ 'active' if not project_id else '' }}">
+                            <i class="bi bi-chat-dots me-2"></i> Obecný chat
+                        </a>
+                        {% for proj in projects %}
+                        <a href="{{ url_for('chat.project_chat_page', project_id=proj.id) }}" class="list-group-item list-group-item-action {{ 'active' if project_id and project_id == proj.id else '' }}">
+                            <i class="bi {{ proj.icon or 'bi-folder' }} me-2"></i> {{ proj.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>
+                            {% if project %}
+                            Chat s projektem: {{ project.name }}
+                            {% else %}
+                            Obecný chat
+                            {% endif %}
+                        </h4>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="chat-container">
+                            <div class="chat-messages" id="chat-messages">
+                                <div class="chat-message system-message">
+                                    <div class="message-content">
+                                        {% if project %}
+                                        <p>Vítejte v chatu projektu <strong>{{ project.name }}</strong>. Zde můžete klást dotazy ohledně dokumentů a úkolů v projektu.</p>
+                                        {% else %}
+                                        <p>Vítejte v obecném chatu. Zde můžete klást jakékoli dotazy bez kontextu konkrétního projektu.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <!-- Zde budou zprávy chatu -->
+                            </div>
+                            <div class="chat-input">
+                                <form id="chat-form">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="chat-message-input" placeholder="Napište zprávu nebo otázku...">
+                                        <button class="btn btn-primary" type="submit">
+                                            <i class="bi bi-send"></i>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-light py-3 mt-5">
+        <div class="container text-center">
+            <p class="text-muted mb-0">&copy; 2025 Kancelářská automatizace</p>
+        </div>
+    </footer>
+
+    <!-- Přepínač tématu -->
+    <div id="theme-toggle" class="theme-toggle" title="Přepnout téma">
+        <i class="bi bi-moon-fill"></i>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatForm = document.getElementById('chat-form');
+            const chatInput = document.getElementById('chat-message-input');
+            const chatMessages = document.getElementById('chat-messages');
+            
+            {% if project %}
+            const projectId = {{ project.id }};
+            const chatEndpoint = `/chat/project/${projectId}`;
+            {% else %}
+            const chatEndpoint = `/chat/general`;
+            {% endif %}
+            
+            // Funkce pro zobrazení zprávy při načítání stránky
+            function showServiceStatus() {
+                // Kontrola, zda služby jsou dostupné (pouze simulace - ve skutečné aplikaci by byla API kontrola)
+                fetch('/health')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'ok') {
+                            addMessageToChat('system', 'Služby jsou připraveny. Můžete začít klást dotazy.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Chyba při kontrole stavu služeb:', error);
+                    });
+            }
+            
+            // Zobrazení informace o stavu služeb
+            showServiceStatus();
+            
+            if (chatForm) {
+                chatForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const message = chatInput.value.trim();
+                    if (!message) return;
+                    
+                    // Přidání zprávy uživatele do chatu
+                    addMessageToChat('user', message);
+                    
+                    // Zobrazení indikátoru načítání
+                    const loadingMessage = addMessageToChat('loading', '');
+                    
+                    // Odeslání zprávy na server
+                    fetch(chatEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ message })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        // Odstranění zprávy s načítáním
+                        if (loadingMessage) {
+                            loadingMessage.remove();
+                        }
+                        
+                        if (data.status === 'success') {
+                            // Úspěšná odpověď
+                            addMessageToChat('assistant', data.response);
+                        } else if (data.status === 'warning') {
+                            // Varování - např. LLM není nakonfigurováno
+                            addMessageToChat('system', data.response);
+                        } else {
+                            // Chybová odpověď
+                            addMessageToChat('system', `Chyba: ${data.message || 'Něco se pokazilo.'}`);
+                            if (data.response) {
+                                addMessageToChat('assistant', data.response);
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Chyba:', error);
+                        
+                        // Odstranění zprávy s načítáním
+                        if (loadingMessage) {
+                            loadingMessage.remove();
+                        }
+                        
+                        // Zobrazení chybové zprávy
+                        addMessageToChat('system', `Chyba při komunikaci se serverem: ${error.message}`);
+                    });
+                    
+                    // Vyčištění vstupního pole
+                    chatInput.value = '';
+                    
+                    // Zaměření na vstupní pole
+                    chatInput.focus();
+                });
+            }
+            
+            // Funkce pro přidání zprávy do chatu
+            function addMessageToChat(sender, content) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `chat-message ${sender}-message`;
+                
+                if (sender === 'loading') {
+                    // Zpráva s načítáním
+                    messageDiv.innerHTML = `
+                        <div class="message-content">
+                            <div class="loading-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Běžná zpráva
+                    let iconClass = '';
+                    switch (sender) {
+                        case 'user':
+                            iconClass = 'bi-person-circle';
+                            break;
+                        case 'assistant':
+                            iconClass = 'bi-robot';
+                            break;
+                        case 'system':
+                            iconClass = 'bi-info-circle';
+                            break;
+                        default:
+                            iconClass = 'bi-chat-dots';
+                    }
+                    
+                    messageDiv.innerHTML = `
+                        <div class="message-avatar">
+                            <i class="bi ${iconClass}"></i>
+                        </div>
+                        <div class="message-content">
+                            <p>${formatMessageContent(content)}</p>
+                        </div>
+                    `;
+                }
+                
+                chatMessages.appendChild(messageDiv);
+                
+                // Scrollování na konec
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                return messageDiv;
+            }
+            
+            // Formátování obsahu zprávy (markdown-like syntax)
+            function formatMessageContent(content) {
+                if (!content) return '';
+                
+                // Escape HTML characters
+                let formattedContent = content
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                
+                // Nahrazení odřádkování značkami <br>
+                formattedContent = formattedContent.replace(/\n/g, '<br>');
+                
+                // Zvýraznění textu **bold** -> <strong>bold</strong>
+                formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                
+                // Zvýraznění textu *italic* -> <em>italic</em>
+                formattedContent = formattedContent.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                
+                // Zvýraznění kódu `code` -> <code>code</code>
+                formattedContent = formattedContent.replace(/`(.*?)`/g, '<code>$1</code>');
+                
+                return formattedContent;
+            }
+        });
+    </script>

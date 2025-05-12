@@ -10,6 +10,8 @@ load_dotenv()
 from controllers.task_controller import task_bp
 from controllers.user_controller import user_bp
 from controllers.document_controller import document_bp
+from controllers.project_controller import project_bp
+from controllers.chat_controller import chat_bp
 
 # Vytvoření Flask aplikace
 app = Flask(__name__)
@@ -19,6 +21,8 @@ app.config.from_pyfile('config.py')
 app.register_blueprint(task_bp, url_prefix='/tasks')
 app.register_blueprint(user_bp, url_prefix='/users')
 app.register_blueprint(document_bp, url_prefix='/documents')
+app.register_blueprint(project_bp, url_prefix='/projects')
+app.register_blueprint(chat_bp, url_prefix='/chat')
 
 @app.route('/')
 def index():
